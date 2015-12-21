@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<hibernate-mapping xmlns="urn:nhibernate-mapping-2.2" assembly="NHibernate.Test" namespace="NHibernate.Test.NHSpecificTest.NH3841">
+
+	<class name="ParentEntity">
+    <composite-id name="Id" class="ParentEntityId">
+      <key-property name="Prop1" column="Prop1" />
+      <key-property name="Prop2" column="Prop2" />
+    </composite-id>
+    <property name="Name" />
+	</class>
+
+  <class name="ChildEntity">
+    <id name="Id" generator="guid.comb" />
+    <property name="Name" />
+
+    <many-to-one name="ParentEntity" class="ParentEntity">
+      <column name="Prop1" />
+      <column name="Prop2" />
+    </many-to-one>
+  </class>
+
+</hibernate-mapping>

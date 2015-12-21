@@ -11,7 +11,6 @@ using NHibernate.Mapping;
 using NHibernate.Tool.hbm2ddl;
 using NHibernate.Type;
 using NUnit.Framework;
-using NHibernate.Hql.Classic;
 using NHibernate.Hql.Ast.ANTLR;
 
 namespace NHibernate.Test
@@ -19,45 +18,23 @@ namespace NHibernate.Test
     public abstract class TestCase
     {
         private const bool OutputDdl = false;
-        protected Configuration cfg;
-        protected ISessionFactoryImplementor sessions;
+        protected Configuration Cfg;
+        protected ISessionFactoryImplementor Sessions;
 
-        private static readonly ILog log = LogManager.GetLogger(typeof(TestCase));
+        private static readonly ILog Log = LogManager.GetLogger(typeof(TestCase));
 
-        protected Dialect.Dialect Dialect
-        {
-            get { return NHibernate.Dialect.Dialect.GetDialect(cfg.Properties); }
-        }
+        protected Dialect.Dialect Dialect => NHibernate.Dialect.Dialect.GetDialect(Cfg.Properties);
 
-        protected TestDialect TestDialect
-        {
-            get { return TestDialect.GetTestDialect(Dialect); }
-        }
+        protected TestDialect TestDialect => TestDialect.GetTestDialect(Dialect);
+
 
         /// <summary>
         /// To use in in-line test
         /// </summary>
-        protected bool IsClassicParser
-        {
-            get
-            {
-                return sessions.Settings.QueryTranslatorFactory is ClassicQueryTranslatorFactory;
-            }
-        }
+        protected bool IsAntlrParser => Sessions.Settings.QueryTranslatorFactory is ASTQueryTranslatorFactory;
 
-        /// <summary>
-        /// To use in in-line test
-        /// </summary>
-        protected bool IsAntlrParser
-        {
-            get
-            {
-                return sessions.Settings.QueryTranslatorFactory is ASTQueryTranslatorFactory;
-            }
-        }
-
-        protected ISession lastOpenedSession;
-        private DebugConnectionProvider connectionProvider;
+        protected ISession LastOpenedSession;
+        private DebugConnectionProvider _connectionProvider;
 
         /// <summary>
         /// Mapping files used in the TestCase
@@ -67,10 +44,7 @@ namespace NHibernate.Test
         /// <summary>
         /// Assembly to load mapping files from (default is NHibernate.DomainModel).
         /// </summary>
-        protected virtual string MappingsAssembly
-        {
-            get { return "NHibernate.DomainModel"; }
-        }
+        protected virtual string MappingsAssembly => "NHibernate.DomainModel";
 
         static TestCase()
         {
@@ -96,7 +70,7 @@ namespace NHibernate.Test
                 try
                 {
                     BuildSessionFactory();
-                    if (!AppliesTo(sessions))
+                    if (!AppliesTo(Sessions))
                     {
                         Assert.Ignore(GetType() + " does not apply with the current session-factory configuration");
                     }
@@ -110,7 +84,7 @@ namespace NHibernate.Test
             catch (Exception e)
             {
                 Cleanup();
-                log.Error("Error while setting up the test fixture", e);
+                Log.Error("Error while setting up the test fixture", e);
                 throw;
             }
         }
@@ -175,10 +149,10 @@ namespace NHibernate.Test
 
         private bool CheckSessionWasClosed()
         {
-            if (lastOpenedSession != null && lastOpenedSession.IsOpen)
+            if (LastOpenedSession != null && LastOpenedSession.IsOpen)
             {
-                log.Error("Test case didn't close a session, closing");
-                lastOpenedSession.Close();
+                Log.Error("Test case didn't close a session, closing");
+                LastOpenedSession.Close();
                 return false;
             }
 
@@ -187,7 +161,7 @@ namespace NHibernate.Test
 
         private bool CheckDatabaseWasCleaned()
         {
-            if (sessions.GetAllClassMetadata().Count == 0)
+            if (Sessions.GetAllClassMetadata().Count == 0)
             {
                 // Return early in the case of no mappings, also avoiding
                 // a warning when executing the HQL below.
@@ -195,7 +169,7 @@ namespace NHibernate.Test
             }
 
             bool empty;
-            using (ISession s = sessions.OpenSession())
+            using (ISession s = Sessions.OpenSession())
             {
                 IList objects = s.CreateQuery("from System.Object o").List();
                 empty = objects.Count == 0;
@@ -203,7 +177,7 @@ namespace NHibernate.Test
 
             if (!empty)
             {
-                log.Error("Test case didn't clean up the database after itself, re-creating the schema");
+                Log.Error("Test case didn't clean up the database after itself, re-creating the schema");
                 DropSchema();
                 CreateSchema();
             }
@@ -213,27 +187,27 @@ namespace NHibernate.Test
 
         private bool CheckConnectionsWereClosed()
         {
-            if (connectionProvider == null || !connectionProvider.HasOpenConnections)
+            if (_connectionProvider == null || !_connectionProvider.HasOpenConnections)
             {
                 return true;
             }
 
-            log.Error("Test case didn't close all open connections, closing");
-            connectionProvider.CloseAllConnections();
+            Log.Error("Test case didn't close all open connections, closing");
+            _connectionProvider.CloseAllConnections();
             return false;
         }
 
         private void Configure()
         {
-            cfg = new Configuration();
-            if (TestConfigurationHelper.hibernateConfigFile != null)
-                cfg.Configure(TestConfigurationHelper.hibernateConfigFile);
+            Cfg = new Configuration();
+            if (TestConfigurationHelper.HibernateConfigFile != null)
+                Cfg.Configure(TestConfigurationHelper.HibernateConfigFile);
 
-            AddMappings(cfg);
+            AddMappings(Cfg);
 
-            Configure(cfg);
+            Configure(Cfg);
 
-            ApplyCacheSettings(cfg);
+            ApplyCacheSettings(Cfg);
         }
 
         protected virtual void AddMappings(Configuration configuration)
@@ -248,40 +222,37 @@ namespace NHibernate.Test
 
         protected virtual void CreateSchema()
         {
-            new SchemaExport(cfg).Create(OutputDdl, true);
+            new SchemaExport(Cfg).Create(OutputDdl, true);
         }
 
         private void DropSchema()
         {
-            new SchemaExport(cfg).Drop(OutputDdl, true);
+            new SchemaExport(Cfg).Drop(OutputDdl, true);
         }
 
         protected virtual void BuildSessionFactory()
         {
-            sessions = (ISessionFactoryImplementor)cfg.BuildSessionFactory();
-            connectionProvider = sessions.ConnectionProvider as DebugConnectionProvider;
+            Sessions = (ISessionFactoryImplementor)Cfg.BuildSessionFactory();
+            _connectionProvider = Sessions.ConnectionProvider as DebugConnectionProvider;
         }
 
         private void Cleanup()
         {
-            if (sessions != null)
-            {
-                sessions.Close();
-            }
-            sessions = null;
-            connectionProvider = null;
-            lastOpenedSession = null;
-            cfg = null;
+            Sessions?.Close();
+            Sessions = null;
+            _connectionProvider = null;
+            LastOpenedSession = null;
+            Cfg = null;
         }
 
         public int ExecuteStatement(string sql)
         {
-            if (cfg == null)
+            if (Cfg == null)
             {
-                cfg = new Configuration();
+                Cfg = new Configuration();
             }
 
-            using (IConnectionProvider prov = ConnectionProviderFactory.NewConnectionProvider(cfg.Properties))
+            using (IConnectionProvider prov = ConnectionProviderFactory.NewConnectionProvider(Cfg.Properties))
             {
                 IDbConnection conn = prov.GetConnection();
 
@@ -310,27 +281,23 @@ namespace NHibernate.Test
             using (IDbCommand cmd = session.Connection.CreateCommand())
             {
                 cmd.CommandText = sql;
-                if (transaction != null)
-                    transaction.Enlist(cmd);
+                transaction?.Enlist(cmd);
                 return cmd.ExecuteNonQuery();
             }
         }
 
-        protected ISessionFactoryImplementor Sfi
-        {
-            get { return sessions; }
-        }
+        protected ISessionFactoryImplementor Sfi => Sessions;
 
         protected virtual ISession OpenSession()
         {
-            lastOpenedSession = sessions.OpenSession();
-            return lastOpenedSession;
+            LastOpenedSession = Sessions.OpenSession();
+            return LastOpenedSession;
         }
 
         protected virtual ISession OpenSession(IInterceptor sessionLocalInterceptor)
         {
-            lastOpenedSession = sessions.OpenSession(sessionLocalInterceptor);
-            return lastOpenedSession;
+            LastOpenedSession = Sessions.OpenSession(sessionLocalInterceptor);
+            return LastOpenedSession;
         }
 
         protected void ApplyCacheSettings(Configuration configuration)
@@ -348,7 +315,7 @@ namespace NHibernate.Test
                     if (prop.Value.IsSimpleValue)
                     {
                         IType type = ((SimpleValue)prop.Value).Type;
-                        if (type == NHibernateUtil.BinaryBlob)
+                        if (Equals(type, NHibernateUtil.BinaryBlob))
                         {
                             hasLob = true;
                         }
@@ -382,11 +349,7 @@ namespace NHibernate.Test
         {
         }
 
-        protected virtual string CacheConcurrencyStrategy
-        {
-            get { return "nonstrict-read-write"; }
-            //get { return null; }
-        }
+        protected virtual string CacheConcurrencyStrategy => "nonstrict-read-write";
 
         #endregion
     }

@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 
 namespace NHibernate.Test.NHSpecificTest
@@ -10,29 +9,20 @@ namespace NHibernate.Test.NHSpecificTest
 	/// </summary>
 	public abstract class BugTestCase : TestCase
 	{
-		protected override string MappingsAssembly
-		{
-			get { return "NHibernate.Test"; }
-		}
+		protected override string MappingsAssembly => "NHibernate.Test";
 
-		public virtual string BugNumber
+	    public virtual string BugNumber
 		{
 			get
 			{
 				string ns = GetType().Namespace;
-				return ns.Substring(ns.LastIndexOf('.') + 1);
+				return ns?.Substring(ns.LastIndexOf('.') + 1);
 			}
 		}
 
-		protected override IList Mappings
-		{
-			get
-			{
-				return new string[]
-					{
-						"NHSpecificTest." + BugNumber + ".Mappings.hbm.xml"
-					};
-			}
-		}
+	    protected override IList Mappings => new[]
+	    {
+	        "NHSpecificTest." + BugNumber + ".Mappings.hbm.xml"
+	    };
 	}
 }
